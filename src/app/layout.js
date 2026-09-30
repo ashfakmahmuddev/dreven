@@ -1,19 +1,37 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
-// হেডার এবং ফুটার ইম্পোর্ট করুন (পাথ আপনার ফোল্ডার স্ট্রাকচার অনুযায়ী হতে পারে)
+import Script from 'next/script'; // 1. Script ইম্পোর্ট করা হয়েছে
+
+// হেডার এবং ফুটার ইম্পোর্ট করুন
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'ইসলামিক শপ', // টাইটেল পরিবর্তন করতে পারেন
+  title: 'ইসলামিক শপ',
   description: 'সেরা মানের ইসলামিক পোশাক ও আতর',
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="bn">
+      <head>
+        {/* 2. Google Analytics (gtag.js) Script */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-5SCDZRN2EE"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-5SCDZRN2EE');
+          `}
+        </Script>
+      </head>
       <body className={`${inter.className} flex flex-col min-h-screen`}>
         {/* Header সবসময় সবার উপরে থাকবে */}
         <Header />
