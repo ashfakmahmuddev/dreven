@@ -6,30 +6,30 @@ export default function LandingPage() {
   const banners = [
     {
       id: 1,
-      title: "ফিলিস্তিনি ক্যাফিয়া ও সুগন্ধি আতর",
-      subtitle: "অরিজিনাল ফিলিস্তিনি ক্যাফিয়া এবং সেরা মানের আতর কালেকশন",
+      title: "Palestinian Keffiyehs & Fine Attar",
+      subtitle: "Authentic Palestinian keffiyehs and a premium attar collection",
       bgColor: "bg-emerald-800",
     },
     {
       id: 2,
-      title: "প্রিমিয়াম ইসলামিক জুব্বা ও পাঞ্জাবি",
-      subtitle: "আরামদায়ক কাপড়ে তৈরি এক্সক্লুসিভ ডিজাইন",
+      title: "Premium Islamic Jubbas & Panjabis",
+      subtitle: "Exclusive designs made with comfortable fabrics",
       bgColor: "bg-slate-800",
     },
     {
       id: 3,
-      title: "হালাল টি-শার্ট ও প্রিমিয়াম টুপি",
-      subtitle: "প্রতিদিনের ব্যবহারের জন্য সেরা মানের ইসলামিক পোশাক",
+      title: "Halal T-Shirts & Premium Caps",
+      subtitle: "Quality Islamic apparel for everyday wear",
       bgColor: "bg-teal-900",
     },
   ];
 
   // ক্যাটাগরি ডেটা
   const categories = [
-    { id: 1, name: "ক্যাফিয়া ও টুপি" },
-    { id: 2, name: "সুগন্ধি আতর" },
-    { id: 3, name: "জুব্বা ও পাঞ্জাবি" },
-    { id: 4, name: "ইসলামিক টি-শার্ট" },
+    { id: 1, name: "Keffiyehs & Caps" },
+    { id: 2, name: "Attar & Fragrance" },
+    { id: 3, name: "Jubbas & Panjabis" },
+    { id: 4, name: "Islamic T-Shirts" },
   ];
 
   // ডামি প্রোডাক্ট ডেটা (কার্ড স্টাইল পরে যোগ করার জন্য)
@@ -77,7 +77,7 @@ export default function LandingPage() {
 
       {/* ২. ক্যাটাগরি সেকশন */}
       <section className="max-w-7xl mx-auto px-4 mt-12">
-        <h2 className="text-2xl font-bold text-center mb-8 text-gray-800">আমাদের ক্যাটাগরি</h2>
+        <h2 className="text-2xl font-bold text-center mb-8 text-gray-800">Shop by Category</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {categories.map((category) => (
             <div
@@ -94,7 +94,7 @@ export default function LandingPage() {
 
       {/* ৩. প্রোডাক্ট সেকশন */}
       <section className="max-w-7xl mx-auto px-4 mt-16">
-        <h2 className="text-2xl font-bold text-center mb-8 text-gray-800">জনপ্রিয় কালেকশন</h2>
+        <h2 className="text-2xl font-bold text-center mb-8 text-gray-800">Popular Collections</h2>
         
         {/* প্রোডাক্ট গ্রিড (ডেস্কটপে ৪টা করে কার্ড) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -104,7 +104,7 @@ export default function LandingPage() {
               className="bg-white h-80 rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-gray-400"
             >
               {/* এখানে আপনার প্রোডাক্ট কার্ডের ডিজাইন বসবে */}
-              <p>প্রোডাক্ট কার্ড {item}</p>
+              <p>Product {item}</p>
             </div>
           ))}
         </div>

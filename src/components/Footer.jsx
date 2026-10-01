@@ -8,37 +8,37 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* অংশ ১: ব্র্যান্ড তথ্য */}
           <div>
-            <h3 className="text-2xl font-bold text-white mb-4">ইসলামিক শপ</h3>
+            <h3 className="text-2xl font-bold text-white mb-4">Dreven</h3>
             <p className="text-sm leading-relaxed">
-              আপনাকে সেরা মানের হালাল পোশাক এবং সুগন্ধি পৌঁছে দেওয়াই আমাদের লক্ষ্য। আমাদের কালেকশনে আছে অরিজিনাল ফিলিস্তিনি ক্যাফিয়া, জুব্বা এবং আতর।
+              Our goal is to bring you quality halal clothing and fragrances. Explore authentic Palestinian keffiyehs, jubbas, and attar in our collection.
             </p>
           </div>
 
           {/* অংশ ২: কুইক লিংক */}
           <div>
-            <h4 className="text-lg font-semibold text-white mb-4">প্রয়োজনীয় লিংক</h4>
+            <h4 className="text-lg font-semibold text-white mb-4">Quick Links</h4>
             <ul className="space-y-2">
-              <li><Link href="/" className="hover:text-emerald-400 transition-colors">হোম</Link></li>
-              <li><Link href="/shop" className="hover:text-emerald-400 transition-colors">শপ</Link></li>
-              <li><Link href="/contact" className="hover:text-emerald-400 transition-colors">যোগাযোগ</Link></li>
-              <li><Link href="/privacy-policy" className="hover:text-emerald-400 transition-colors">প্রাইভেসি পলিসি</Link></li>
+              <li><Link href="/" className="hover:text-emerald-400 transition-colors">Home</Link></li>
+              <li><Link href="/shop" className="hover:text-emerald-400 transition-colors">Shop</Link></li>
+              <li><Link href="/contact" className="hover:text-emerald-400 transition-colors">Contact</Link></li>
+              <li><Link href="/privacy-policy" className="hover:text-emerald-400 transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
 
           {/* অংশ ৩: যোগাযোগ */}
           <div>
-            <h4 className="text-lg font-semibold text-white mb-4">যোগাযোগ করুন</h4>
+            <h4 className="text-lg font-semibold text-white mb-4">Contact Us</h4>
             <ul className="space-y-2 text-sm">
-              <li>ইমেইল: info@islamicshop.com</li>
-              <li>ফোন: +880 1234 567 890</li>
-              <li>ঠিকানা: ঢাকা, বাংলাদেশ</li>
+              <li>Email: info@islamicshop.com</li>
+              <li>Phone: +880 1234 567 890</li>
+              <li>Address: Dhaka, Bangladesh</li>
             </ul>
           </div>
         </div>
         
         {/* কপিরাইট অংশ */}
         <div className="border-t border-slate-700 mt-8 pt-8 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} ইসলামিক শপ। সর্বস্বত্ব সংরক্ষিত।</p>
+          <p>&copy; {new Date().getFullYear()} Dreven. All rights reserved.</p>
         </div>
       </div>
     </footer>
