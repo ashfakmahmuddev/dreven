@@ -1,30 +1,6 @@
-"use client";
-import { useState, useEffect } from "react";
+import HeroCarousel from "../components/HeroCarousel";
 
 export default function LandingPage() {
-  // স্লাইডার ব্যানার ডেটা
-  const banners = [
-    {
-      id: 1,
-      title: "Palestinian Keffiyehs & Fine Attar",
-      subtitle: "Authentic Palestinian keffiyehs and a premium attar collection",
-      bgColor: "bg-emerald-800",
-    },
-    {
-      id: 2,
-      title: "Premium Islamic Jubbas & Panjabis",
-      subtitle: "Exclusive designs made with comfortable fabrics",
-      bgColor: "bg-slate-800",
-    },
-    {
-      id: 3,
-      title: "Halal T-Shirts & Premium Caps",
-      subtitle: "Quality Islamic apparel for everyday wear",
-      bgColor: "bg-teal-900",
-    },
-  ];
-
-  // ক্যাটাগরি ডেটা
   const categories = [
     { id: 1, name: "Keffiyehs & Caps" },
     { id: 2, name: "Attar & Fragrance" },
@@ -32,48 +8,11 @@ export default function LandingPage() {
     { id: 4, name: "Islamic T-Shirts" },
   ];
 
-  // ডামি প্রোডাক্ট ডেটা (কার্ড স্টাইল পরে যোগ করার জন্য)
   const dummyProducts = [1, 2, 3, 4, 5, 6, 7, 8];
-
-  // স্লাইডার লজিক
-  const [currentSlide, setCurrentSlide] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev === banners.length - 1 ? 0 : prev + 1));
-    }, 5000); // প্রতি ৫ সেকেন্ডে স্লাইড চেঞ্জ হবে
-    return () => clearInterval(timer);
-  }, [banners.length]);
 
   return (
     <main className="min-h-screen bg-gray-50 pb-16">
-      {/* ১. হিরো ব্যানার স্লাইডার */}
-      <section className="relative w-full h-[400px] overflow-hidden">
-        {banners.map((banner, index) => (
-          <div
-            key={banner.id}
-            className={`absolute inset-0 transition-opacity duration-1000 flex flex-col items-center justify-center text-white text-center px-4 ${
-              banner.bgColor
-            } ${index === currentSlide ? "opacity-100 z-10" : "opacity-0 z-0"}`}
-          >
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">{banner.title}</h1>
-            <p className="text-lg md:text-xl max-w-2xl">{banner.subtitle}</p>
-          </div>
-        ))}
-        
-        {/* স্লাইডার ইন্ডিকেটর (ডট) */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2 z-20">
-          {banners.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all ${
-                index === currentSlide ? "bg-white scale-125" : "bg-white/50"
-              }`}
-            />
-          ))}
-        </div>
-      </section>
+      <HeroCarousel />
 
       {/* ২. ক্যাটাগরি সেকশন */}
       <section className="max-w-7xl mx-auto px-4 mt-12">

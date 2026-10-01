@@ -47,7 +47,7 @@ export default function Product({ product }) {
       </div>
 
       {/* প্রোডাক্ট টাইটেল ও প্রাইস সেকশন */}
-      <div className="flex-grow">
+      <div className="grow">
         <Link href={`/product/${id}`}>
           <h3 className="text-gray-800 text-sm font-medium line-clamp-2 hover:text-emerald-600 transition-colors mb-2">
             {title}
