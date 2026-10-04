@@ -184,8 +184,8 @@ export default function ProductDetails({ product }) {
               </fieldset>
             )}
 
-            <div className={`${isAttar ? 'mt-6' : 'mt-8'} border-t border-neutral-200 pt-6`}>
-              <label htmlFor="product-quantity" className="text-sm font-medium">
+            <div className={`${isAttar ? 'mt-4 pt-4' : 'mt-6 pt-5'} border-t border-neutral-200`}>
+              <label htmlFor="product-quantity" className="mr-3 text-sm font-medium">
                 Quantity
               </label>
               <div className="mt-3 inline-flex h-12 items-center border border-neutral-200">
