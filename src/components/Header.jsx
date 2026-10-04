@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getProductSearchScore } from "../lib/product-search";
 
 // মেনু লিংক ডাটা (প্রয়োজন অনুযায়ী পরিবর্তন করতে পারেন)
 const mainNavLinks = [
@@ -16,10 +17,83 @@ const mainNavLinks = [
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isPassed, setIsPassed] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchProducts, setSearchProducts] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const searchInputRef = useRef(null);
+  const searchProductsLoaded = useRef(false);
   const [cartCount, setCartCount] = useState(0);
   const [customer, setCustomer] = useState(null);
+  const searchResults = useMemo(() => {
+    const ranked = searchProducts
+      .map((product) => ({ product, score: getProductSearchScore(product, searchQuery) }))
+      .filter((result) => result.score !== null)
+      .sort((left, right) => left.score - right.score);
+    return searchQuery.trim() ? ranked.slice(0, 6) : ranked.slice(0, 4);
+  }, [searchProducts, searchQuery]);
+
+  function openSearch() {
+    setIsOpen(false);
+    if (!searchProductsLoaded.current) setSearchLoading(true);
+    setSearchOpen(true);
+    setSearchError("");
+    window.setTimeout(() => searchInputRef.current?.focus(), 50);
+  }
+
+  function closeSearch() {
+    setSearchOpen(false);
+  }
+
+  function submitSearch(event) {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) {
+      searchInputRef.current?.focus();
+      return;
+    }
+    closeSearch();
+    router.push(`/shop?search=${encodeURIComponent(query)}`);
+  }
+
+  useEffect(() => {
+    if (!searchOpen) return undefined;
+
+    const controller = new AbortController();
+    if (!searchProductsLoaded.current) {
+      fetch("/api/products", { cache: "no-store", signal: controller.signal })
+        .then(async (response) => {
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "Products could not be loaded.");
+          if (!Array.isArray(result.products)) throw new Error("Product search returned invalid data.");
+          searchProductsLoaded.current = true;
+          setSearchProducts(result.products);
+        })
+        .catch((error) => {
+          if (error.name === "AbortError") return;
+          console.error("Could not load products for header search.", error);
+          setSearchError("Search is temporarily unavailable. Please try again.");
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setSearchLoading(false);
+        });
+    }
+
+    function closeOnEscape(event) {
+      if (event.key === "Escape") closeSearch();
+    }
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      controller.abort();
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [searchOpen]);
 
   // স্ক্রোল ইভেন্ট ট্র্যাকিং
   useEffect(() => {
@@ -137,8 +211,11 @@ export default function Header() {
               {/* Search Icon */}
               <button
                 type="button"
-                aria-label="Search"
-                className="cursor-pointer hover:text-[#000000] transition-colors"
+                aria-label={searchOpen ? "Close search" : "Search"}
+                aria-expanded={searchOpen}
+                aria-controls="site-product-search"
+                onClick={() => (searchOpen ? closeSearch() : openSearch())}
+                className="cursor-pointer transition-colors hover:text-[#08765b]"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -280,6 +357,134 @@ export default function Header() {
           </div>
         </div>
       </header>
+
+      <div
+        id="site-product-search"
+        aria-hidden={!searchOpen}
+        inert={!searchOpen}
+        className={`fixed inset-0 z-[60] transition-[opacity,visibility] duration-300 ${
+          searchOpen ? "visible opacity-100" : "invisible opacity-0"
+        }`}
+      >
+        <button
+          type="button"
+          aria-label="Close search"
+          onClick={closeSearch}
+          className={`absolute inset-0 bg-[#17231f]/45 transition-opacity duration-300 ${
+            searchOpen ? "opacity-100" : "opacity-0"
+          }`}
+        />
+        <section
+          role="dialog"
+          aria-modal="true"
+          aria-label="Search products"
+          className={`absolute inset-x-0 top-0 mx-auto max-h-[min(82vh,680px)] max-w-3xl overflow-y-auto border border-[#e3e7df] bg-[#f7f7f3] shadow-2xl transition-[transform,opacity] duration-300 ease-out ${
+            searchOpen ? "translate-y-0 opacity-100" : "-translate-y-5 opacity-0"
+          }`}
+        >
+          <div className="border-b border-[#e3e7df] bg-white px-5 pb-5 pt-6 sm:px-7">
+            <form onSubmit={submitSearch} className="flex items-center gap-3">
+              <svg aria-hidden="true" className="h-5 w-5 shrink-0 text-[#65746b]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-4-4" />
+              </svg>
+              <label className="sr-only" htmlFor="site-search-input">Search products</label>
+              {searchOpen && (
+                <input
+                  ref={searchInputRef}
+                  id="site-search-input"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search products by name..."
+                  autoComplete="off"
+                  autoFocus
+                  className="min-w-0 flex-1 bg-transparent py-2 text-base text-[#17231f] outline-none placeholder:text-[#9aa49d] sm:text-lg"
+                />
+              )}
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="shrink-0 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-[#748079] hover:text-[#08765b]"
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={closeSearch}
+                aria-label="Close search"
+                className="shrink-0 rounded-full p-2 text-[#65746b] transition-colors hover:bg-[#f1f2ed] hover:text-[#17231f]"
+              >
+                <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="m18 6-12 12M6 6l12 12" />
+                </svg>
+              </button>
+            </form>
+            <p className="mt-2 pl-8 text-[10px] text-[#8a958e]">Suggestions update as you type. Close spellings are matched too.</p>
+          </div>
+
+          <div className="px-5 py-5 sm:px-7">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#65746b]">
+                {searchQuery.trim() ? "Products" : "Popular products"}
+              </h2>
+              {searchQuery.trim() && searchResults.length > 0 && (
+                <button
+                  type="button"
+                  onClick={submitSearch}
+                  className="text-[10px] font-semibold uppercase tracking-[.1em] text-[#08765b] hover:text-[#17231f]"
+                >
+                  View all results →
+                </button>
+              )}
+            </div>
+
+            {searchLoading ? (
+              <p role="status" className="py-8 text-center text-sm text-[#748079]">Loading products…</p>
+            ) : searchError ? (
+              <p role="alert" className="py-8 text-center text-sm text-red-700">{searchError}</p>
+            ) : searchResults.length > 0 ? (
+              <ul className="divide-y divide-[#e3e7df]">
+                {searchResults.map(({ product }) => (
+                  <li key={product.id}>
+                    <Link
+                      href={`/products/${encodeURIComponent(product.id)}`}
+                      onClick={closeSearch}
+                      className="flex items-center gap-4 py-3 transition-colors hover:bg-white"
+                    >
+                      <Image
+                        src={product.image || "/dreven_dv.png"}
+                        alt=""
+                        width={64}
+                        height={64}
+                        unoptimized
+                        className="h-14 w-14 shrink-0 bg-[#f1f2ed] object-cover sm:h-16 sm:w-16"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-[#17231f]">{product.name}</span>
+                        <span className="mt-1 block text-[10px] uppercase tracking-[.12em] text-[#748079]">{product.category}</span>
+                      </span>
+                      <span className="shrink-0 text-xs font-semibold text-[#41534a]">
+                        {Number(product.stock) > 0 ? "View product" : "Out of stock"}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="py-8 text-center">
+                <p className="text-sm font-medium text-[#17231f]">No close matches found.</p>
+                <p className="mt-1 text-xs text-[#748079]">Try a shorter name or check the spelling.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
 
       {/* Mobile Drawer Navigation */}
       <div

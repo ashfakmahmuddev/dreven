@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Product from './Product';
 import { getAttarPrices, isAttarProduct } from '../lib/product-pricing';
+import { getProductSearchScore } from '../lib/product-search';
 
 function getStartingPrice(product) {
   return isAttarProduct(product)
@@ -10,7 +11,7 @@ function getStartingPrice(product) {
     : Number(product.price);
 }
 
-export default function ShopCatalog({ products, initialCategory, catalogUnavailable }) {
+export default function ShopCatalog({ products, initialCategory, initialQuery, catalogUnavailable }) {
   const availableCategories = useMemo(
     () => [...new Set(products.map((product) => product.category || 'Other'))].sort(),
     [products],
@@ -18,7 +19,7 @@ export default function ShopCatalog({ products, initialCategory, catalogUnavaila
   const [category, setCategory] = useState(
     availableCategories.includes(initialCategory) ? initialCategory : 'All products',
   );
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery || '');
   const [availability, setAvailability] = useState('all');
   const [sort, setSort] = useState('featured');
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -48,15 +49,11 @@ export default function ShopCatalog({ products, initialCategory, catalogUnavaila
   );
 
   const filteredProducts = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
     const result = products.filter((product) => {
       const matchesCategory = category === 'All products' || product.category === category;
       const matchesAvailability = availability === 'all'
         || (availability === 'in-stock' ? Number(product.stock) > 0 : Number(product.stock) <= 0);
-      const matchesQuery = !normalizedQuery
-        || [product.name, product.category, product.id]
-          .filter(Boolean)
-          .some((value) => value.toLowerCase().includes(normalizedQuery));
+      const matchesQuery = !query.trim() || getProductSearchScore(product, query) !== null;
       return matchesCategory && matchesAvailability && matchesQuery;
     });
 

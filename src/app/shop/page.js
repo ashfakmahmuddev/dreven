@@ -11,6 +11,7 @@ export const metadata = {
 export default async function ShopPage({ searchParams }) {
   const query = await searchParams;
   const requestedCategory = typeof query?.category === 'string' ? query.category : '';
+  const requestedSearch = typeof query?.search === 'string' ? query.search : '';
   let products = [];
   let catalogUnavailable = false;
 
@@ -51,8 +52,10 @@ export default async function ShopPage({ searchParams }) {
       </section>
 
       <ShopCatalog
+        key={`${requestedCategory}:${requestedSearch}`}
         products={products}
         initialCategory={requestedCategory}
+        initialQuery={requestedSearch}
         catalogUnavailable={catalogUnavailable}
       />
     </main>
