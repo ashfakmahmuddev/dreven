@@ -3,6 +3,14 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import {
+  bangladeshDistricts,
+  deliveryFeesByZone,
+  getDeliveryZoneForDistrict,
+} from '../lib/bangladesh-districts';
+import { getUpazilasForDistrict } from '../lib/bangladesh-upazilas';
+
+const checkoutDetailsStorageKey = 'dreven-checkout-details';
 
 function readCart() {
   const savedCart = window.localStorage.getItem('dreven-cart');
@@ -27,6 +35,27 @@ function readCart() {
   return cart;
 }
 
+function validateCheckoutDetails(details) {
+  if (
+    !details ||
+    typeof details !== 'object' ||
+    ['name', 'phone', 'email', 'address', 'district', 'upazila'].some(
+      (field) => typeof details[field] !== 'string',
+    ) ||
+    !bangladeshDistricts.includes(details.district) ||
+    !getUpazilasForDistrict(details.district).includes(details.upazila)
+  ) {
+    throw new Error('Saved checkout details are not valid.');
+  }
+
+  return details;
+}
+
+function readSavedCheckoutDetails() {
+  const savedDetails = window.localStorage.getItem(checkoutDetailsStorageKey);
+  return savedDetails ? validateCheckoutDetails(JSON.parse(savedDetails)) : null;
+}
+
 function formatPrice(price) {
   return `৳${Number(price).toLocaleString('en-BD')}`;
 }
@@ -39,21 +68,63 @@ export default function CheckoutPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [deliveryZone, setDeliveryZone] = useState('');
+  const [district, setDistrict] = useState('');
+  const [upazila, setUpazila] = useState('');
+  const [savedCheckoutDetails, setSavedCheckoutDetails] = useState(null);
+  const [savedDetailsWarning, setSavedDetailsWarning] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
 
   useEffect(() => {
     let active = true;
-    window.queueMicrotask(() => {
+    window.queueMicrotask(async () => {
       if (!active) return;
       try {
         setCart(readCart());
       } catch (cartError) {
         console.error('Could not read the saved cart at checkout.', cartError);
         setError('We could not load your cart. Return to your cart and try again.');
+      }
+
+      try {
+        const details = readSavedCheckoutDetails();
+        if (details) {
+          setSavedCheckoutDetails(details);
+          setDistrict(details.district);
+          setUpazila(details.upazila);
+        } else {
+          const response = await fetch('/api/customer/checkout-details', {
+            cache: 'no-store',
+          });
+          if (response.status === 401) return;
+          if (!response.ok) {
+            throw new Error('Previous order details are temporarily unavailable.');
+          }
+
+          const result = await response.json();
+          if (!result.details) return;
+
+          const previousOrderDetails = validateCheckoutDetails(result.details);
+          if (!active) return;
+          setSavedCheckoutDetails(previousOrderDetails);
+          setDistrict(previousOrderDetails.district);
+          setUpazila(previousOrderDetails.upazila);
+          try {
+            window.localStorage.setItem(
+              checkoutDetailsStorageKey,
+              JSON.stringify(previousOrderDetails),
+            );
+          } catch (storageError) {
+            console.error('Could not cache the customer’s previous checkout details.', storageError);
+          }
+        }
+      } catch (detailsError) {
+        console.error('Could not restore saved checkout details.', detailsError);
+        if (active) {
+          setNotice('Your previous delivery details could not be loaded. Please enter them again.');
+        }
       } finally {
-        setIsLoaded(true);
+        if (active) setIsLoaded(true);
       }
     });
 
@@ -66,11 +137,13 @@ export default function CheckoutPage() {
     0,
   );
 
-  const deliveryFee = deliveryZone === 'inside_dhaka'
-    ? 80
-    : deliveryZone === 'outside_dhaka'
-      ? 120
-      : null;
+  const deliveryZone = getDeliveryZoneForDistrict(district);
+  const deliveryLabels = {
+    dhaka_district: 'Dhaka district',
+    dhaka_division: 'Outside Dhaka district · Dhaka division',
+    outside_dhaka_division: 'Outside Dhaka division',
+  };
+  const deliveryFee = deliveryZone ? deliveryFeesByZone[deliveryZone] : null;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -87,16 +160,34 @@ export default function CheckoutPage() {
           phone: String(formData.get('phone') || ''),
           email: String(formData.get('email') || ''),
           address: String(formData.get('address') || ''),
-          city: String(formData.get('city') || ''),
+          city: district,
+          upazila,
           note: String(formData.get('note') || ''),
           deliveryZone,
-          items: cart.map(({ id, quantity }) => ({ id, quantity })),
+          items: cart.map(({ id, quantity, sizeMl }) => ({
+            id,
+            quantity,
+            ...(sizeMl ? { sizeMl } : {}),
+          })),
         }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'অর্ডার জমা দেওয়া যায়নি। আবার চেষ্টা করুন।');
 
       setConfirmation(result.order);
+      try {
+        window.localStorage.setItem(checkoutDetailsStorageKey, JSON.stringify({
+          name: String(formData.get('name') || ''),
+          phone: String(formData.get('phone') || ''),
+          email: String(formData.get('email') || ''),
+          address: String(formData.get('address') || ''),
+          district,
+          upazila,
+        }));
+      } catch (storageError) {
+        console.error('The order was placed, but checkout details could not be saved.', storageError);
+        setSavedDetailsWarning('Your order was placed, but your details could not be saved for next time.');
+      }
       try {
         window.localStorage.removeItem('dreven-cart');
         window.dispatchEvent(new Event('dreven-cart-updated'));
@@ -146,6 +237,11 @@ export default function CheckoutPage() {
             <p className="mt-3 text-sm leading-6 text-neutral-600">
               Your cash-on-delivery order has been saved. Our team will contact you to confirm delivery.
             </p>
+            {savedDetailsWarning && (
+              <p role="status" className="mt-4 text-sm text-amber-800">
+                {savedDetailsWarning}
+              </p>
+            )}
             <dl className="mx-auto mt-7 max-w-sm divide-y divide-neutral-200 border-y border-neutral-200 text-sm">
               <div className="flex justify-between gap-4 py-3">
                 <dt className="text-neutral-500">Order number</dt>
@@ -197,10 +293,21 @@ export default function CheckoutPage() {
                 <h2 className="text-sm font-semibold uppercase tracking-[.14em]">
                   Delivery details
                 </h2>
+                <p className="mt-2 text-xs leading-5 text-neutral-500">
+                  {savedCheckoutDetails
+                    ? 'Details from your last successful order are filled in. You can edit them before placing this order.'
+                    : 'Your details from a successful order will be saved in this browser and, when signed in, linked to your account for faster checkout next time.'}
+                </p>
                 <div className="mt-6 grid gap-5 sm:grid-cols-2">
                   <label className="block text-sm font-medium text-neutral-700">
                     Full name
-                    <input required name="name" autoComplete="name" className={inputClassName} />
+                    <input
+                      required
+                      name="name"
+                      autoComplete="name"
+                      defaultValue={savedCheckoutDetails?.name || ''}
+                      className={inputClassName}
+                    />
                   </label>
                   <label className="block text-sm font-medium text-neutral-700">
                     Phone number
@@ -210,6 +317,7 @@ export default function CheckoutPage() {
                       type="tel"
                       autoComplete="tel"
                       inputMode="tel"
+                      defaultValue={savedCheckoutDetails?.phone || ''}
                       className={inputClassName}
                     />
                   </label>
@@ -219,65 +327,67 @@ export default function CheckoutPage() {
                       name="email"
                       type="email"
                       autoComplete="email"
+                      defaultValue={savedCheckoutDetails?.email || ''}
                       className={inputClassName}
                     />
                   </label>
                   <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-                    Delivery address
+                    Full delivery address
                     <textarea
                       required
                       name="address"
                       autoComplete="street-address"
                       rows={3}
+                      placeholder="House or holding no., road/street, village or area, and a nearby landmark"
+                      defaultValue={savedCheckoutDetails?.address || ''}
                       className={`${inputClassName} resize-y py-3`}
                     />
                   </label>
                   <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-                    City / district
-                    <input
+                    District
+                    <select
                       required
                       name="city"
                       autoComplete="address-level2"
-                      className={inputClassName}
-                    />
+                      value={district}
+                      onChange={(event) => {
+                        setDistrict(event.target.value);
+                        setUpazila('');
+                      }}
+                      className={`${inputClassName} appearance-auto`}
+                    >
+                      <option value="">Select your district</option>
+                      {bangladeshDistricts.map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
                   </label>
-                  <fieldset className="sm:col-span-2">
-                    <legend className="text-sm font-medium text-neutral-700">
-                      Delivery area
-                    </legend>
-                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                      <label className={`flex cursor-pointer items-start gap-3 border p-4 transition-colors ${deliveryZone === 'inside_dhaka' ? 'border-black bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'}`}>
-                        <input
-                          required
-                          type="radio"
-                          name="deliveryZone"
-                          value="inside_dhaka"
-                          checked={deliveryZone === 'inside_dhaka'}
-                          onChange={(event) => setDeliveryZone(event.target.value)}
-                          className="mt-0.5 accent-black"
-                        />
-                        <span>
-                          <span className="block text-sm font-medium">Inside Dhaka</span>
-                          <span className="mt-1 block text-xs text-neutral-500">{formatPrice(80)} delivery</span>
-                        </span>
-                      </label>
-                      <label className={`flex cursor-pointer items-start gap-3 border p-4 transition-colors ${deliveryZone === 'outside_dhaka' ? 'border-black bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'}`}>
-                        <input
-                          required
-                          type="radio"
-                          name="deliveryZone"
-                          value="outside_dhaka"
-                          checked={deliveryZone === 'outside_dhaka'}
-                          onChange={(event) => setDeliveryZone(event.target.value)}
-                          className="mt-0.5 accent-black"
-                        />
-                        <span>
-                          <span className="block text-sm font-medium">Outside Dhaka</span>
-                          <span className="mt-1 block text-xs text-neutral-500">{formatPrice(120)} delivery</span>
-                        </span>
-                      </label>
-                    </div>
-                  </fieldset>
+                  <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
+                    Upazila
+                    <select
+                      required
+                      name="upazila"
+                      value={upazila}
+                      onChange={(event) => setUpazila(event.target.value)}
+                      disabled={!district}
+                      className={`${inputClassName} appearance-auto disabled:cursor-not-allowed disabled:bg-neutral-100`}
+                    >
+                      <option value="">
+                        {district ? 'Select your upazila' : 'Select a district first'}
+                      </option>
+                      {getUpazilasForDistrict(district).map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="sm:col-span-2" aria-live="polite">
+                    <p className="text-sm font-medium text-neutral-700">Delivery charge</p>
+                    <p className="mt-2 border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+                      {deliveryFee === null
+                        ? 'Select your district to see the delivery charge.'
+                        : `${deliveryLabels[deliveryZone]} · ${formatPrice(deliveryFee)}`}
+                    </p>
+                  </div>
                   <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
                     Order note <span className="font-normal text-neutral-400">(optional)</span>
                     <textarea name="note" rows={2} className={`${inputClassName} resize-y py-3`} />
@@ -330,6 +440,7 @@ export default function CheckoutPage() {
                         {item.title}
                       </p>
                       <p className="mt-1 text-xs text-neutral-500">
+                        {item.sizeMl ? `${item.sizeMl}ml · ` : ''}
                         Qty {item.quantity} · {formatPrice(item.price)} each
                       </p>
                     </div>
@@ -347,12 +458,12 @@ export default function CheckoutPage() {
               <div className="mt-3 flex justify-between gap-4 text-sm">
                 <span className="text-neutral-600">Delivery</span>
                 <span className="text-xs text-neutral-500">
-                  {deliveryFee === null ? 'Choose a delivery area' : formatPrice(deliveryFee)}
+                  {deliveryFee === null ? 'Select a district' : formatPrice(deliveryFee)}
                 </span>
               </div>
               <div className="mt-5 flex justify-between gap-4 border-t border-neutral-200 pt-4 text-sm font-semibold">
                 <span>Total including delivery</span>
-                <span>{formatPrice(subtotal + (deliveryFee || 0))}</span>
+                <span>{deliveryFee === null ? 'Select a district' : formatPrice(subtotal + deliveryFee)}</span>
               </div>
 
               {notice && (
@@ -363,7 +474,7 @@ export default function CheckoutPage() {
 
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !district || !upazila}
                 className="mt-6 min-h-12 w-full bg-neutral-900 px-5 text-xs font-semibold uppercase tracking-[.15em] text-white transition-colors hover:bg-[#05AE7A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:cursor-wait disabled:opacity-60"
               >
                 {isSubmitting ? 'Placing order…' : 'Place COD order'}

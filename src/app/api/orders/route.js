@@ -1,14 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { getDatabase, getMongoClient } from '../../../lib/mongodb';
 import { getCustomerSession } from '../../../lib/customer-auth';
+import {
+  deliveryFeesByZone,
+  getDeliveryZoneForDistrict,
+} from '../../../lib/bangladesh-districts';
+import { isValidUpazila } from '../../../lib/bangladesh-upazilas';
+import { attarSizesMl, getAttarPrices, isAttarProduct } from '../../../lib/product-pricing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const deliveryFees = {
-  inside_dhaka: 80,
-  outside_dhaka: 120,
-};
 const maximumLineItems = 30;
 const maximumQuantity = 20;
 
@@ -33,8 +35,9 @@ export async function POST(request) {
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
   const address = typeof body?.address === 'string' ? body.address.trim() : '';
   const city = typeof body?.city === 'string' ? body.city.trim() : '';
+  const upazila = typeof body?.upazila === 'string' ? body.upazila.trim() : '';
   const note = typeof body?.note === 'string' ? body.note.trim() : '';
-  const deliveryZone = body?.deliveryZone;
+  const deliveryZone = getDeliveryZoneForDistrict(city);
   const requestedItems = body?.items;
 
   if (!validText(name, 100)) return errorResponse('আপনার নাম লিখুন (সর্বোচ্চ ১০০ অক্ষর)।');
@@ -43,9 +46,9 @@ export async function POST(request) {
     return errorResponse('সঠিক ইমেইল ঠিকানা লিখুন।');
   }
   if (!validText(address, 500)) return errorResponse('সম্পূর্ণ ডেলিভারি ঠিকানা লিখুন।');
-  if (!validText(city, 100)) return errorResponse('শহর বা জেলার নাম লিখুন।');
+  if (!deliveryZone) return errorResponse('বাংলাদেশের সঠিক একটি জেলা বেছে নিন।');
+  if (!isValidUpazila(city, upazila)) return errorResponse('নির্বাচিত জেলার জন্য সঠিক উপজেলা বেছে নিন।');
   if (note.length > 500) return errorResponse('অর্ডার নোট ৫০০ অক্ষরের মধ্যে লিখুন।');
-  if (!Object.hasOwn(deliveryFees, deliveryZone)) return errorResponse('ঢাকার ভেতরে বা ঢাকার বাইরে ডেলিভারি এলাকা বেছে নিন।');
   if (!Array.isArray(requestedItems) || requestedItems.length < 1 || requestedItems.length > maximumLineItems) {
     return errorResponse('আপনার কার্টে অর্ডার করার মতো পণ্য নেই।');
   }
@@ -58,13 +61,19 @@ export async function POST(request) {
       !/^[a-zA-Z0-9_-]{1,100}$/.test(item.id) ||
       !Number.isInteger(item.quantity) ||
       item.quantity < 1 ||
-      item.quantity > maximumQuantity
+      item.quantity > maximumQuantity ||
+      (item.sizeMl !== undefined && !attarSizesMl.includes(item.sizeMl))
     ) {
       return errorResponse('কার্টের পণ্যের তথ্য সঠিক নয়। কার্ট আবার দেখে নিন।');
     }
-    quantities.set(item.id, (quantities.get(item.id) || 0) + item.quantity);
+    const lineKey = `${item.id}:${item.sizeMl ?? 'standard'}`;
+    quantities.set(lineKey, {
+      id: item.id,
+      sizeMl: item.sizeMl,
+      quantity: (quantities.get(lineKey)?.quantity || 0) + item.quantity,
+    });
   }
-  if ([...quantities.values()].some((quantity) => quantity > maximumQuantity)) {
+  if ([...quantities.values()].some((item) => item.quantity > maximumQuantity)) {
     return errorResponse('একটি পণ্যের সর্বোচ্চ অর্ডার পরিমাণ ২০টি।');
   }
 
@@ -85,16 +94,20 @@ export async function POST(request) {
     await session.withTransaction(async () => {
       const productsCollection = database.collection('products');
       const orderItems = [];
+      const stockDeductions = new Map();
       let subtotal = 0;
 
-      for (const [id, quantity] of quantities) {
+      for (const { id, sizeMl, quantity } of quantities.values()) {
         const product = await productsCollection.findOne({ id }, { session });
         if (!product) throw new Error(`UNAVAILABLE:${id}`);
-        if (!Number.isInteger(product.stock) || product.stock < quantity) {
-          throw new Error(`STOCK:${product.name}`);
+
+        const isAttar = isAttarProduct(product);
+        const selectedSizeMl = isAttar ? (sizeMl ?? 3) : sizeMl;
+        if ((isAttar && !attarSizesMl.includes(selectedSizeMl)) || (!isAttar && sizeMl !== undefined)) {
+          throw new Error('INVALID_VARIANT');
         }
 
-        const price = Number(product.price);
+        const price = Number(isAttar ? getAttarPrices(product)[selectedSizeMl] : product.price);
         if (!Number.isFinite(price) || price < 0) throw new Error('INVALID_PRICE');
 
         orderItems.push({
@@ -103,8 +116,17 @@ export async function POST(request) {
           image: product.image || '/dreven_dv.png',
           price,
           quantity,
+          ...(isAttar ? { sizeMl: selectedSizeMl } : {}),
         });
         subtotal += price * quantity;
+        stockDeductions.set(id, (stockDeductions.get(id) || 0) + quantity);
+      }
+
+      for (const [id, quantity] of stockDeductions) {
+        const product = await productsCollection.findOne({ id }, { session });
+        if (!Number.isInteger(product?.stock) || product.stock < quantity) {
+          throw new Error(`STOCK:${product?.name || id}`);
+        }
       }
 
       const now = new Date();
@@ -116,25 +138,27 @@ export async function POST(request) {
         phone,
         address,
         city,
+        upazila,
         deliveryZone,
         note,
         items: orderItems,
         itemCount: orderItems.reduce((sum, item) => sum + item.quantity, 0),
         subtotal,
-        deliveryFee: deliveryFees[deliveryZone],
-        total: subtotal + deliveryFees[deliveryZone],
+        deliveryFee: deliveryFeesByZone[deliveryZone],
+        total: subtotal + deliveryFeesByZone[deliveryZone],
         paymentMethod: 'Cash on delivery',
         status: 'Pending',
         createdAt: now,
       };
 
-      for (const item of orderItems) {
+      for (const [id, quantity] of stockDeductions) {
+        const product = orderItems.find((item) => item.id === id);
         const result = await productsCollection.updateOne(
-          { id: item.id, stock: { $gte: item.quantity } },
-          { $inc: { stock: -item.quantity }, $set: { updatedAt: now } },
+          { id, stock: { $gte: quantity } },
+          { $inc: { stock: -quantity }, $set: { updatedAt: now } },
           { session },
         );
-        if (result.modifiedCount !== 1) throw new Error(`STOCK:${item.name}`);
+        if (result.modifiedCount !== 1) throw new Error(`STOCK:${product?.name || id}`);
       }
 
       await database.collection('orders').insertOne(placedOrder, { session });
@@ -154,6 +178,9 @@ export async function POST(request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error.message === 'INVALID_VARIANT') {
+      return errorResponse('পণ্যের নির্বাচিত সাইজটি সঠিক নয়। কার্ট আবার দেখে নিন।');
+    }
     if (error.message?.startsWith('UNAVAILABLE:')) {
       return errorResponse('কার্টের একটি পণ্য আর পাওয়া যাচ্ছে না। কার্ট আপডেট করে আবার চেষ্টা করুন।', 409);
     }

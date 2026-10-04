@@ -8,7 +8,7 @@ export async function GET() {
     await ensureDefaultProducts();
     const collection = await getProductCollection();
     const products = await collection
-      .find({ stock: { $gt: 0 } }, { projection: { _id: 0 } })
+      .find({}, { projection: { _id: 0 } })
       .sort({ createdAt: -1 })
       .toArray();
     return Response.json({ products }, { headers: { 'Cache-Control': 'no-store' } });

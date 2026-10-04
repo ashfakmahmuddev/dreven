@@ -7,6 +7,7 @@ import {
   ObjectId,
 } from '../../../../lib/mongodb';
 import { isAdminAuthenticated } from '../../../../lib/admin-auth';
+import { getSuggestedAttarPrices } from '../../../../lib/product-pricing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -58,7 +59,15 @@ async function saveProduct(request, isUpdate) {
     const formData = await request.formData();
     const name = String(formData.get('name') || '').trim();
     const category = String(formData.get('category') || '');
-    const price = Number(formData.get('price'));
+    const isAttar = category === 'Attar & Fragrance';
+    const price10MlField = formData.get('price10ml');
+    const priceField = isAttar && price10MlField !== null
+      ? price10MlField
+      : formData.get('price');
+    if (priceField === null || String(priceField).trim() === '') {
+      return errorResponse(isAttar ? 'Enter a valid 10ml attar price.' : 'Enter a valid product price.', 400);
+    }
+    const price = Number(priceField);
     const stock = Number(formData.get('stock'));
     const requestedId = String(formData.get('id') || '');
     const fileValue = formData.get('imageFile');
@@ -79,6 +88,22 @@ async function saveProduct(request, isUpdate) {
     if (isUpdate && !currentProduct) return errorResponse('Product not found.', 404);
     if (!isUpdate && requestedId && await collection.findOne({ id: requestedId })) {
       return errorResponse('A product with this ID already exists.', 409);
+    }
+
+    let pricesBySize;
+    if (isAttar) {
+      const suggestedPrices = getSuggestedAttarPrices(price);
+      pricesBySize = { 10: price };
+      for (const size of [3, 5]) {
+        const submittedPrice = formData.get(`price${size}ml`);
+        const sizePrice = submittedPrice === null || submittedPrice === ''
+          ? suggestedPrices[size]
+          : Number(submittedPrice);
+        if (!Number.isFinite(sizePrice) || sizePrice < 0) {
+          return errorResponse(`Enter a valid ${size}ml attar price.`, 400);
+        }
+        pricesBySize[size] = sizePrice;
+      }
     }
 
     let image = String(formData.get('image') || '').trim();
@@ -121,13 +146,20 @@ async function saveProduct(request, isUpdate) {
       category,
       price,
       stock,
+      ...(pricesBySize ? { pricesBySize } : {}),
       image,
       updatedAt: now,
     };
 
     if (isUpdate) {
       product.createdAt = currentProduct.createdAt || now;
-      await collection.updateOne({ id: requestedId }, { $set: product });
+      await collection.updateOne(
+        { id: requestedId },
+        {
+          $set: product,
+          ...(!pricesBySize ? { $unset: { pricesBySize: '' } } : {}),
+        },
+      );
     } else {
       product.createdAt = now;
       await collection.insertOne(product);
@@ -180,6 +212,35 @@ export async function POST(request) {
 }
 
 export async function PATCH(request) {
+  if (request.headers.get('content-type')?.includes('application/json')) {
+    const authError = await adminAccessError();
+    if (authError) return authError;
+
+    try {
+      const body = await request.json();
+      if (
+        typeof body?.id !== 'string' ||
+        !/^[a-zA-Z0-9_-]{1,100}$/.test(body.id) ||
+        !Number.isSafeInteger(body.stock) ||
+        body.stock < 0
+      ) {
+        return errorResponse('Enter a valid product and stock quantity.', 400);
+      }
+
+      const collection = await getProductCollection();
+      const result = await collection.findOneAndUpdate(
+        { id: body.id },
+        { $set: { stock: body.stock, updatedAt: new Date() } },
+        { returnDocument: 'after', projection: { _id: 0 } },
+      );
+      if (!result) return errorResponse('Product not found.', 404);
+      return Response.json({ product: result });
+    } catch (error) {
+      console.error('Could not update product stock.', error);
+      return errorResponse('Product stock could not be updated. Check the database connection.');
+    }
+  }
+
   return saveProduct(request, true);
 }
 

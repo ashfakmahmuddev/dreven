@@ -18,7 +18,8 @@ function readCart() {
         typeof item.image !== 'string' ||
         !Number.isFinite(Number(item.price)) ||
         !Number.isInteger(Number(item.quantity)) ||
-        Number(item.quantity) < 1,
+        Number(item.quantity) < 1 ||
+        (item.sizeMl !== undefined && ![3, 5, 10].includes(item.sizeMl)),
     )
   ) {
     throw new Error('Saved cart data is not valid.');
@@ -29,6 +30,10 @@ function readCart() {
 
 function formatPrice(price) {
   return `৳${Number(price).toLocaleString('en-BD')}`;
+}
+
+function getCartLineKey(item) {
+  return `${item.id}:${item.sizeMl || 'standard'}`;
 }
 
 export default function CartPage() {
@@ -74,7 +79,7 @@ export default function CartPage() {
   function updateQuantity(id, change) {
     const nextCart = cart
       .map((item) =>
-        item.id === id
+        getCartLineKey(item) === id
           ? { ...item, quantity: item.quantity + change }
           : item,
       )
@@ -83,7 +88,7 @@ export default function CartPage() {
   }
 
   function removeItem(id) {
-    saveCart(cart.filter((item) => item.id !== id));
+    saveCart(cart.filter((item) => getCartLineKey(item) !== id));
   }
 
   const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
@@ -161,7 +166,7 @@ export default function CartPage() {
             <section aria-label="Items in your cart" className="border-y border-neutral-200 bg-white px-4 sm:px-6">
               {cart.map((item) => (
                 <article
-                  key={item.id}
+                  key={getCartLineKey(item)}
                   className="grid grid-cols-[88px_1fr] gap-4 border-b border-neutral-200 py-5 last:border-b-0 sm:grid-cols-[112px_1fr_auto] sm:gap-6 sm:py-6"
                 >
                   <div className="relative aspect-square overflow-hidden bg-neutral-100">
@@ -179,13 +184,15 @@ export default function CartPage() {
                     <h2 className="text-sm font-semibold uppercase tracking-wide sm:text-base">
                       {item.title}
                     </h2>
-                    <p className="mt-2 text-sm text-neutral-600">{formatPrice(item.price)}</p>
+                    <p className="mt-2 text-sm text-neutral-600">
+                      {formatPrice(item.price)}{item.sizeMl ? ` · ${item.sizeMl}ml` : ''}
+                    </p>
                     <div className="mt-auto flex items-center gap-4 pt-4">
                       <div className="flex h-9 items-center border border-neutral-300">
                         <button
                           type="button"
-                          aria-label={`Decrease ${item.title} quantity`}
-                          onClick={() => updateQuantity(item.id, -1)}
+                          aria-label={`Decrease ${item.title}${item.sizeMl ? ` ${item.sizeMl}ml` : ''} quantity`}
+                          onClick={() => updateQuantity(getCartLineKey(item), -1)}
                           className="h-full w-9 text-lg text-neutral-600 transition-colors hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset"
                         >
                           −
@@ -195,8 +202,8 @@ export default function CartPage() {
                         </span>
                         <button
                           type="button"
-                          aria-label={`Increase ${item.title} quantity`}
-                          onClick={() => updateQuantity(item.id, 1)}
+                          aria-label={`Increase ${item.title}${item.sizeMl ? ` ${item.sizeMl}ml` : ''} quantity`}
+                          onClick={() => updateQuantity(getCartLineKey(item), 1)}
                           className="h-full w-9 text-lg text-neutral-600 transition-colors hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset"
                         >
                           +
@@ -204,7 +211,7 @@ export default function CartPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => removeItem(getCartLineKey(item))}
                         className="text-xs text-neutral-500 underline underline-offset-4 transition-colors hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                       >
                         Remove
