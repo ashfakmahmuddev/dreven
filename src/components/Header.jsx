@@ -18,6 +18,8 @@ export default function Header() {
   const pathname = usePathname();
   const [isPassed, setIsPassed] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [customer, setCustomer] = useState(null);
 
   // স্ক্রোল ইভেন্ট ট্র্যাকিং
   useEffect(() => {
@@ -28,6 +30,58 @@ export default function Header() {
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const updateCustomer = (event) => {
+      if (event instanceof CustomEvent) {
+        setCustomer(event.detail?.user || null);
+        return;
+      }
+
+      fetch('/api/customer/session', { cache: 'no-store' })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Could not check customer session.');
+        if (active) setCustomer(result.user);
+      })
+      .catch((error) => {
+        console.error('Could not check customer session in the header.', error);
+      });
+    };
+
+    updateCustomer();
+    window.addEventListener('dreven-customer-session-updated', updateCustomer);
+    return () => {
+      active = false;
+      window.removeEventListener('dreven-customer-session-updated', updateCustomer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const updateCartCount = () => {
+      try {
+        const savedCart = window.localStorage.getItem("dreven-cart");
+        const cart = savedCart ? JSON.parse(savedCart) : [];
+        if (!Array.isArray(cart)) {
+          throw new Error("Saved cart data is not valid.");
+        }
+        setCartCount(cart.reduce((total, item) => total + (Number(item.quantity) || 0), 0));
+      } catch (error) {
+        console.error("Could not read the saved cart.", error);
+      }
+    };
+
+    updateCartCount();
+    window.addEventListener("dreven-cart-updated", updateCartCount);
+    window.addEventListener("storage", updateCartCount);
+    return () => {
+      window.removeEventListener("dreven-cart-updated", updateCartCount);
+      window.removeEventListener("storage", updateCartCount);
+    };
+  }, []);
+
+  if (pathname?.startsWith("/admin")) return null;
 
   return (
     <>
@@ -49,7 +103,7 @@ export default function Header() {
             <Link href="/">
               <Image
                 src="/drevenlogo.png"
-                alt="dreven-dream-heaven"
+                alt="Dreven logo"
                 width={120} // ম্যাক্সিমাম উইডথ
                 height={40} // ম্যাক্সিমাম হাইট
                 priority
@@ -130,10 +184,36 @@ export default function Header() {
                 </svg>
               </button>
 
+              <div className="hidden items-center gap-2 lg:flex">
+                {customer ? (
+                  <Link
+                    href="/account"
+                    className="border border-neutral-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[.14em] transition-colors hover:border-black"
+                  >
+                    My account
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      className="border border-neutral-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[.14em] transition-colors hover:border-black"
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      href="/signup"
+                      className="border border-black bg-black px-3 py-2 text-[10px] font-semibold uppercase tracking-[.14em] text-white transition-colors hover:bg-[#05AE7A] hover:border-[#05AE7A]"
+                    >
+                      Sign up
+                    </Link>
+                  </>
+                )}
+              </div>
+
               {/* Cart Icon */}
-              <button
-                type="button"
-                aria-label="Cart"
+              <Link
+                href="/cart"
+                aria-label={`Cart, ${cartCount} items`}
                 className="relative hidden cursor-pointer md:block"
               >
                 <svg
@@ -151,9 +231,9 @@ export default function Header() {
                   />
                 </svg>
                 <div className="h-5 w-4 bg-[#05AE7A] absolute -top-2 -right-1 rounded-full flex justify-center items-center text-xs font-semibold text-white">
-                  0
+                  {cartCount}
                 </div>
-              </button>
+              </Link>
 
               {/* Mobile Hamburger / Cross Button */}
               <button
@@ -223,7 +303,7 @@ export default function Header() {
             >
               <Image
                 src="/drevenlogo.png"
-                alt="dreven-official"
+                alt="Dreven logo"
                 width={120}
                 height={40}
                 priority
@@ -276,6 +356,35 @@ export default function Header() {
             </ul>
           </nav>
 
+          <div className="grid grid-cols-2 gap-3 px-6 pb-5">
+            {customer ? (
+              <Link
+                href="/account"
+                onClick={() => setIsOpen(false)}
+                className="col-span-2 flex min-h-12 items-center justify-center border border-gray-300 px-4 py-3 text-xs font-semibold uppercase tracking-[.14em] text-[#303030] transition-colors hover:border-black"
+              >
+                My account
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="flex min-h-12 items-center justify-center border border-gray-300 px-4 py-3 text-xs font-semibold uppercase tracking-[.14em] text-[#303030] transition-colors hover:border-black"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/signup"
+                  onClick={() => setIsOpen(false)}
+                  className="flex min-h-12 items-center justify-center border border-black bg-black px-4 py-3 text-xs font-semibold uppercase tracking-[.14em] text-white transition-colors hover:border-[#05AE7A] hover:bg-[#05AE7A]"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3 border-t border-gray-200 px-6 py-5">
             <button
               type="button"
@@ -304,9 +413,10 @@ export default function Header() {
               </svg>
               <span>Settings</span>
             </button>
-            <button
-              type="button"
-              aria-label="Cart, 0 items"
+            <Link
+              href="/cart"
+              aria-label={`Cart, ${cartCount} items`}
+              onClick={() => setIsOpen(false)}
               className="flex min-h-14 items-center justify-center gap-2 border border-gray-200 px-4 py-3 text-[#303030] transition-colors hover:border-[#05AE7A] hover:text-[#05AE7A]"
             >
               <svg
@@ -325,9 +435,9 @@ export default function Header() {
               </svg>
               <span>Cart</span>
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#05AE7A] px-1 text-xs font-semibold text-white">
-                0
+                {cartCount}
               </span>
-            </button>
+            </Link>
           </div>
         </div>
       </div>

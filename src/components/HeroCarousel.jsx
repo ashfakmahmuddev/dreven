@@ -36,7 +36,7 @@ export default function HeroCarousel() {
 
   return (
     <section
-      aria-label="Dreven - Dream Heaven featured collections"
+      aria-label="Dreven Islamic clothing and fragrance collections"
       className="relative h-[400px] w-full overflow-hidden"
     >
       {banners.map((banner, index) => (
@@ -46,7 +46,9 @@ export default function HeroCarousel() {
           className={`absolute inset-0 flex flex-col items-center justify-center px-4 text-center text-white transition-opacity duration-1000 ${banner.bgColor} ${index === currentSlide ? "z-10 opacity-100" : "z-0 opacity-0"}`}
         >
           {index === currentSlide && (
-            <h1 className="text-4xl font-bold md:text-5xl">Dreven - Dream Heaven</h1>
+            <h1 className="text-4xl font-bold md:text-5xl">
+              Dreven | Islamic Clothing &amp; Attar in Bangladesh
+            </h1>
           )}
           <h2 className="mb-4 mt-3 text-2xl font-semibold md:text-3xl">
             {banner.title}

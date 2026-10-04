@@ -16,11 +16,11 @@ const albertSans = Albert_Sans({
 export const metadata = {
   metadataBase: new URL('https://dreven.com.bd'),
   title: {
-    default: 'Dreven | Dream Heaven Official Store',
-    template: '%s | Dreven - Dream Heaven',
+    default: 'Dreven | Islamic Clothing & Attar in Bangladesh',
+    template: '%s | Dreven',
   },
   description:
-    'Discover Dreven, the Dream Heaven official store for quality halal clothing, premium attar, Palestinian keffiyehs, jubbas, panjabis, and everyday Islamic wear.',
+    'Shop Islamic clothing and attar in Bangladesh at Dreven. Explore jubbas, panjabis, Palestinian keffiyehs, caps, and everyday halal wear.',
   applicationName: 'Dreven',
   icons: {
     icon: '/dreven_dv.png', // public/logo.png অথবা আপনার আইকনের ফাইল পাথ
@@ -29,8 +29,14 @@ export const metadata = {
   },
   keywords: [
     'Dreven',
-    'Dream Heaven',
-    'Dreven Dream Heaven Official Store',
+    'Dreven Bangladesh',
+    'Islamic clothing Bangladesh',
+    'halal clothing Bangladesh',
+    'Islamic wear',
+    'jubba',
+    'panjabi',
+    'Palestinian keffiyeh',
+    'attar',
   ],
   alternates: {
     canonical: '/',
@@ -39,26 +45,26 @@ export const metadata = {
     type: 'website',
     locale: 'en_BD',
     url: '/',
-    siteName: 'Dreven - Dream Heaven',
-    title: 'Dreven | Dream Heaven Official Store',
+    siteName: 'Dreven',
+    title: 'Dreven | Islamic Clothing & Attar in Bangladesh',
     description:
-      'Discover Dreven, the Dream Heaven official store for quality halal clothing, premium attar, Palestinian keffiyehs, jubbas, panjabis, and everyday Islamic wear.',
+      'Shop Islamic clothing and attar in Bangladesh at Dreven. Explore jubbas, panjabis, Palestinian keffiyehs, caps, and everyday halal wear.',
     images: [
       {
         url: '/logo.png',
-        alt: 'dreven-dream-heaven',
+        alt: 'Dreven Islamic clothing and attar',
       },
     ],
   },
   twitter: {
     card: 'summary',
-    title: 'Dreven | Dream Heaven Official Store',
+    title: 'Dreven | Islamic Clothing & Attar in Bangladesh',
     description:
-      'Discover Dreven, the Dream Heaven official store for quality halal clothing, premium attar, Palestinian keffiyehs, jubbas, panjabis, and everyday Islamic wear.',
+      'Shop Islamic clothing and attar in Bangladesh at Dreven. Explore jubbas, panjabis, Palestinian keffiyehs, caps, and everyday halal wear.',
     images: [
       {
         url: '/logo.png',
-        alt: 'dreven-dream-heaven',
+        alt: 'Dreven Islamic clothing and attar',
       },
     ],
   },
@@ -69,15 +75,13 @@ const organizationSchema = {
   '@type': 'Organization',
   '@id': 'https://dreven.com.bd/#organization',
   name: 'Dreven',
-  alternateName: 'Dream Heaven',
   url: 'https://dreven.com.bd',
   logo: 'https://dreven.com.bd/logo.png',
   description:
-    'Dreven, also known as Dream Heaven, offers quality halal clothing and fragrances.',
+    'Dreven is a Bangladesh-based online store for Islamic clothing, halal wear, and fragrances.',
   brand: {
     '@type': 'Brand',
     name: 'Dreven',
-    alternateName: 'Dream Heaven',
   },
 };
 

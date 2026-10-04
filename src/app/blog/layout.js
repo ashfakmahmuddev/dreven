@@ -4,18 +4,20 @@ export const metadata = {
     template: '%s | Dreven Blog',
   },
   description:
-    'News, stories, and updates from Dreven - Dream Heaven.',
+    'News, stories, and updates from Dreven on Islamic clothing, halal fashion, attar, and everyday wear.',
   openGraph: {
     type: 'website',
-    siteName: 'Dreven - Dream Heaven',
-    title: 'Dreven Blog | Dreven - Dream Heaven',
-    description: 'News, stories, and updates from Dreven - Dream Heaven.',
+    siteName: 'Dreven',
+    title: 'Dreven Blog',
+    description:
+      'News, stories, and updates from Dreven on Islamic clothing, halal fashion, attar, and everyday wear.',
     url: '/blog',
   },
   twitter: {
     card: 'summary',
-    title: 'Dreven Blog | Dreven - Dream Heaven',
-    description: 'News, stories, and updates from Dreven - Dream Heaven.',
+    title: 'Dreven Blog',
+    description:
+      'News, stories, and updates from Dreven on Islamic clothing, halal fashion, attar, and everyday wear.',
   },
 };
 
