@@ -14,6 +14,7 @@ export async function POST(request) {
 
   const name = typeof body?.name === 'string' ? body.name.trim() : '';
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
   const password = typeof body?.password === 'string' ? body.password : '';
   const confirmPassword = typeof body?.confirmPassword === 'string' ? body.confirmPassword : '';
 
@@ -25,6 +26,9 @@ export async function POST(request) {
   }
   if (password.length < 8 || Buffer.byteLength(password) > 1024) {
     return Response.json({ error: 'Your password must be at least 8 characters long.' }, { status: 400 });
+  }
+  if (phone && (phone.length < 7 || phone.length > 30)) {
+    return Response.json({ error: 'Enter a valid phone number.' }, { status: 400 });
   }
   if (password !== confirmPassword) {
     return Response.json({ error: 'The passwords do not match.' }, { status: 400 });
@@ -39,6 +43,7 @@ export async function POST(request) {
     const user = {
       name,
       email,
+      phone: phone || '',
       passwordHash: await hashCustomerPassword(password),
       createdAt: now,
       updatedAt: now,

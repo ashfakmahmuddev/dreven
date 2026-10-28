@@ -16,6 +16,7 @@ export default function CustomerAuthForm({ mode }) {
     const formData = new FormData(event.currentTarget);
     const password = String(formData.get('password') || '');
     const confirmPassword = String(formData.get('confirmPassword') || '');
+    const phone = String(formData.get('phone') || '');
     if (isSignup && password !== confirmPassword) {
       setError('The passwords do not match.');
       return;
@@ -29,6 +30,7 @@ export default function CustomerAuthForm({ mode }) {
         body: JSON.stringify({
           name: String(formData.get('name') || ''),
           email: String(formData.get('email') || ''),
+          phone,
           password,
           confirmPassword,
         }),
@@ -55,6 +57,19 @@ export default function CustomerAuthForm({ mode }) {
             name="name"
             autoComplete="name"
             placeholder="Your name"
+            className="mt-2 min-h-12 w-full border border-neutral-300 bg-white px-4 text-sm font-normal outline-none transition-colors placeholder:text-neutral-400 focus:border-black"
+          />
+        </label>
+      )}
+
+      {isSignup && (
+        <label className="block text-sm font-medium text-neutral-700">
+          Phone number
+          <input
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            placeholder="01700000000"
             className="mt-2 min-h-12 w-full border border-neutral-300 bg-white px-4 text-sm font-normal outline-none transition-colors placeholder:text-neutral-400 focus:border-black"
           />
         </label>

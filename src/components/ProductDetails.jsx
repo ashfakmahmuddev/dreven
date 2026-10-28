@@ -25,6 +25,7 @@ export default function ProductDetails({ product }) {
   const [isImageZoomed, setIsImageZoomed] = useState(false);
   const isOutOfStock = !Number.isSafeInteger(product.stock) || product.stock <= 0;
   const isAttar = isAttarProduct(product);
+  const maximumQuantity = Math.min(product.stock, 20);
   const attarPrices = isAttar ? getAttarPrices(product) : null;
   const unitPrice = isAttar ? attarPrices[selectedSize] : product.price;
   const namedImage = getNamedAttarImage(product.name);
@@ -49,9 +50,10 @@ export default function ProductDetails({ product }) {
       const nextQuantity = (existingProduct?.quantity || 0) + quantity;
       if (
         !Number.isSafeInteger(nextQuantity) ||
+        nextQuantity > 20 ||
         productQuantityInCart + quantity > product.stock
       ) {
-        setNotice(`Only ${product.stock} item${product.stock === 1 ? '' : 's'} available. Reduce the quantity in your cart first.`);
+        setNotice(`You can add up to ${maximumQuantity} item${maximumQuantity === 1 ? '' : 's'} per product size. Reduce the quantity in your cart first.`);
         return;
       }
 
@@ -202,12 +204,12 @@ export default function ProductDetails({ product }) {
                   id="product-quantity"
                   type="number"
                   min="1"
-                  max={product.stock}
+                  max={maximumQuantity}
                   value={quantity}
                   disabled={isOutOfStock}
                   onChange={(event) => {
                     const nextQuantity = Number(event.target.value);
-                    if (Number.isSafeInteger(nextQuantity) && nextQuantity >= 1 && nextQuantity <= product.stock) {
+                    if (Number.isSafeInteger(nextQuantity) && nextQuantity >= 1 && nextQuantity <= maximumQuantity) {
                       setQuantity(nextQuantity);
                     }
                   }}
@@ -216,8 +218,8 @@ export default function ProductDetails({ product }) {
                 <button
                   type="button"
                   aria-label="Increase quantity"
-                  disabled={isOutOfStock || quantity >= product.stock}
-                  onClick={() => setQuantity((current) => Math.min(product.stock, current + 1))}
+                  disabled={isOutOfStock || quantity >= maximumQuantity}
+                  onClick={() => setQuantity((current) => Math.min(maximumQuantity, current + 1))}
                   className="h-full w-12 text-lg transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:text-neutral-300"
                 >
                   +

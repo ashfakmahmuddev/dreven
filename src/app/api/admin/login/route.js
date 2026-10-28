@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import {
   ADMIN_SESSION_COOKIE,
   createAdminSession,
+  isValidAdminEmail,
   isValidAdminPassword,
 } from '../../../../lib/admin-auth';
 
@@ -19,6 +20,10 @@ function getAttemptRecord(key) {
     return { startedAt: now, count: 0 };
   }
   return previous;
+}
+
+function normalizeEmail(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 
 export async function POST(request) {
@@ -40,10 +45,15 @@ export async function POST(request) {
   }
 
   try {
-    if (!body || typeof body.password !== 'string' || !isValidAdminPassword(body.password)) {
+    const email = normalizeEmail(body?.email);
+    const password = typeof body?.password === 'string' ? body.password : '';
+    const validEmail = isValidAdminEmail(email);
+    const validPassword = password && isValidAdminPassword(password);
+
+    if (!email || !password || !validEmail || !validPassword) {
       record.count += 1;
       attempts.set(address, record);
-      return Response.json({ error: 'Incorrect admin password.' }, { status: 401 });
+      return Response.json({ error: 'Incorrect admin email or password.' }, { status: 401 });
     }
 
     attempts.delete(address);

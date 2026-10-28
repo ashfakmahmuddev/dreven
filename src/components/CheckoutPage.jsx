@@ -27,6 +27,7 @@ function readCart() {
         !Number.isFinite(Number(item.price)) ||
         !Number.isInteger(Number(item.quantity)) ||
         Number(item.quantity) < 1,
+        (item.sizeMl !== undefined && ![3, 5, 10].includes(item.sizeMl)),
     )
   ) {
     throw new Error('Saved cart data is not valid.');

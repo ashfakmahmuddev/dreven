@@ -181,11 +181,11 @@ export default function AdminDashboard() {
     return () => { active = false; };
   }, [loadOrders, loadProducts, migrateLegacyProducts]);
 
-  async function handleLogin(password) {
+  async function handleLogin(email, password) {
     const response = await fetch('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ email, password }),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Admin sign-in failed.');
@@ -1069,7 +1069,7 @@ function AdminLogin({ initialError, onLogin }) {
     setError('');
     try {
       const formData = new FormData(event.currentTarget);
-      await onLogin(String(formData.get('password') || ''));
+      await onLogin(String(formData.get('email') || ''), String(formData.get('password') || ''));
     } catch (loginError) {
       setError(loginError.message || 'Could not sign in.');
     } finally {
@@ -1082,9 +1082,13 @@ function AdminLogin({ initialError, onLogin }) {
       <section className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-6 shadow-sm sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[.2em] text-neutral-400">Dreven admin</p>
         <h1 className="mt-3 text-2xl font-semibold text-slate-900">Sign in</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-500">Enter the admin password to manage the live product catalogue.</p>
+        <p className="mt-2 text-sm leading-6 text-slate-500">Use the approved admin email and password to manage the live product catalogue.</p>
         {error && <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
         <form onSubmit={submit} className="mt-6 space-y-4">
+          <label className="block text-sm font-medium text-slate-700">
+            Admin email
+            <input required name="email" type="email" autoComplete="email" defaultValue="drevenbd@gmail.com" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-3 font-normal outline-none focus:border-black" />
+          </label>
           <label className="block text-sm font-medium text-slate-700">
             Admin password
             <input required name="password" type="password" autoComplete="current-password" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-3 font-normal outline-none focus:border-black" />

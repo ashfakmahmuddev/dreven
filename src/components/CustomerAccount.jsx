@@ -11,6 +11,9 @@ export default function CustomerAccount() {
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -73,6 +76,45 @@ export default function CustomerAccount() {
     }
   }
 
+  async function updateProfile(event) {
+    event.preventDefault();
+    setSavingProfile(true);
+    setProfileMessage('');
+    setError('');
+
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      name: String(formData.get('name') || ''),
+      email: String(formData.get('email') || ''),
+      phone: String(formData.get('phone') || ''),
+      password: String(formData.get('password') || ''),
+    };
+
+    try {
+      const response = await fetch('/api/customer/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Profile could not be updated.');
+
+      const nextUser = {
+        ...user,
+        ...result.user,
+      };
+      setUser(nextUser);
+      setEditingProfile(false);
+      setProfileMessage('Account updated successfully.');
+      window.dispatchEvent(new CustomEvent('dreven-customer-session-updated', { detail: { user: nextUser } }));
+    } catch (requestError) {
+      console.error('Customer profile update failed.', requestError);
+      setError(requestError.message || 'Profile could not be updated.');
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
   return (
     <main className="min-h-[60vh] bg-[#fafaf8] px-4 py-12 sm:px-6 sm:py-16">
       <section className="mx-auto w-full max-w-4xl border border-neutral-200 bg-white px-6 py-8 shadow-sm sm:px-10 sm:py-10">
@@ -89,9 +131,74 @@ export default function CustomerAccount() {
 
         {status === 'signed-in' && user && (
           <div className="mt-7">
-            <p className="text-lg font-semibold text-neutral-900">{user.name}</p>
-            <p className="mt-1 text-sm text-neutral-500">{user.email}</p>
+            <div className="flex flex-col gap-3 border border-neutral-200 bg-neutral-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-lg font-semibold text-neutral-900">{user.name}</p>
+                <p className="mt-1 text-sm text-neutral-500">{user.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingProfile((current) => !current)}
+                className="inline-flex min-h-11 items-center justify-center border border-neutral-300 bg-white px-5 text-xs font-semibold uppercase tracking-[.15em] text-neutral-700 transition-colors hover:border-black hover:text-black"
+              >
+                {editingProfile ? 'Cancel' : 'Edit profile'}
+              </button>
+            </div>
             {error && <p role="alert" className="mt-5 text-sm text-red-700">{error}</p>}
+            {profileMessage && <p role="status" className="mt-5 text-sm text-green-700">{profileMessage}</p>}
+
+            {editingProfile && (
+              <form onSubmit={updateProfile} className="mt-6 space-y-4 border border-neutral-200 bg-white p-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block text-sm font-medium text-neutral-700">
+                    Name
+                    <input
+                      required
+                      name="name"
+                      defaultValue={user.name || ''}
+                      className="mt-2 min-h-11 w-full border border-neutral-300 bg-white px-4 text-sm outline-none focus:border-black"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-neutral-700">
+                    Phone
+                    <input
+                      name="phone"
+                      type="tel"
+                      defaultValue={user.phone || ''}
+                      className="mt-2 min-h-11 w-full border border-neutral-300 bg-white px-4 text-sm outline-none focus:border-black"
+                    />
+                  </label>
+                </div>
+                <label className="block text-sm font-medium text-neutral-700">
+                  Email
+                  <input
+                    required
+                    name="email"
+                    type="email"
+                    defaultValue={user.email || ''}
+                    className="mt-2 min-h-11 w-full border border-neutral-300 bg-white px-4 text-sm outline-none focus:border-black"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-neutral-700">
+                  New password (optional)
+                  <input
+                    name="password"
+                    type="password"
+                    minLength={8}
+                    placeholder="Leave blank to keep your current password"
+                    className="mt-2 min-h-11 w-full border border-neutral-300 bg-white px-4 text-sm outline-none focus:border-black"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={savingProfile}
+                  className="inline-flex min-h-11 items-center justify-center bg-black px-6 text-xs font-semibold uppercase tracking-[.15em] text-white transition-colors hover:bg-[#05AE7A] disabled:cursor-wait disabled:opacity-60"
+                >
+                  {savingProfile ? 'Saving…' : 'Save changes'}
+                </button>
+              </form>
+            )}
+
             <section className="mt-10 border-t border-neutral-200 pt-8" aria-labelledby="account-orders-heading">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>

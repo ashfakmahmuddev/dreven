@@ -5,9 +5,16 @@ export async function getMongoClient() {
   if (!uri) {
     throw new Error('MONGODB_URI is not configured.');
   }
+  if (uri.includes('<db_password>')) {
+    throw new Error(
+      'MONGODB_URI still contains <db_password>. Replace it with the URL-encoded MongoDB database-user password in .env.local.',
+    );
+  }
 
   if (!globalThis.drevenMongoClientPromise) {
-    const client = new MongoClient(uri);
+    const client = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 10_000,
+    });
     globalThis.drevenMongoClientPromise = client.connect().catch((error) => {
       delete globalThis.drevenMongoClientPromise;
       throw error;

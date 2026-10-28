@@ -80,7 +80,7 @@ export default function CartPage() {
     const nextCart = cart
       .map((item) =>
         getCartLineKey(item) === id
-          ? { ...item, quantity: item.quantity + change }
+          ? { ...item, quantity: Math.min(20, item.quantity + change) }
           : item,
       )
       .filter((item) => item.quantity > 0);

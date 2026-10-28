@@ -37,9 +37,10 @@ export default function Product({ product }) {
       const productQuantityInCart = cart
         .filter((item) => item.id === id)
         .reduce((total, item) => total + item.quantity, 0);
-      if (productQuantityInCart + 1 > Number(product.stock)) {
+      const maximumCartQuantity = Math.min(Number(product.stock), 20);
+      if (productQuantityInCart + 1 > maximumCartQuantity) {
         setAdded(false);
-        setMessage(`Only ${product.stock} item${Number(product.stock) === 1 ? '' : 's'} available.`);
+        setMessage(`You can add up to ${maximumCartQuantity} item${maximumCartQuantity === 1 ? '' : 's'} of this product.`);
         return;
       }
 
